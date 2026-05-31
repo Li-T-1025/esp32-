@@ -1,0 +1,10 @@
+build/
+*.bin
+*.elf
+*.map
+*.partitions.bin
+*.bootloader.bin
+*.merged.bin
+flash_args
+build.options.json
+sdkconfig
