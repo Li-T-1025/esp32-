@@ -54,17 +54,24 @@
 #define MAX_GPS_EPH 150              // GPS HDOP 阈值，MAVLink eph 通常为 HDOP*100，150=1.5
 #define MAX_GPS_EPV 250              // GPS VDOP 阈值，MAVLink epv 通常为 VDOP*100，250=2.5
 #define SENSOR_TIMEOUT_MS 2000       // 关键飞控传感器数据最大允许年龄
+#define EKF_MAX_VEL_VARIANCE 0.5f    // EKF 速度估计允许的最大方差
+#define EKF_MAX_POS_VARIANCE 0.5f    // EKF 水平位置估计允许的最大方差
+#define EKF_STABLE_REQUIRED_MS 5000  // EKF 需持续健康 5 秒才允许进入编队
 #define MAX_LOST_WAIT_TIME  12000   // 失联后最大等待时间，单位(毫秒),12秒
 #define HOLD_LOST_WAIT_TIME 3000    // 中短时失联后进入安全过渡动作，单位(毫秒),3秒
 #define WIFI_RECONNECT_INTERVAL 3000 // WiFi 主动重连间隔，单位(毫秒),3秒
 #define WIFI_CONNECT_WINDOW_MS 12000 // WiFi 每次发起连接后的等待窗口，单位(毫秒),12秒
 #define COPTER_AUTO_TAKEOFF_MAX_ALT 4500 // 多旋翼自动起飞的最大温和起飞高度，单位(毫米),4.5米
-#define COPTER_AUTO_JOIN_HOVER_MS 3000 // 多旋翼自动起飞后进入编队前的稳定悬停时间，单位(毫秒),3秒
+#define COPTER_AUTO_JOIN_HOVER_MS 8000 // 多旋翼自动起飞后进入编队前的稳定悬停时间，单位(毫秒),8秒
 #define COPTER_JOIN_APPROACH_MS 5000 // 多旋翼进入编队初期的渐进收敛时间，单位(毫秒),5秒
 #define COPTER_FOLLOW_MAX_STEP_M 0.8f // 多旋翼每次更新允许的最大水平目标位移，单位(m)
 #define COPTER_FOLLOW_MAX_ASCENT_STEP_M 0.35f // 多旋翼每次更新允许的最大目标升高量，单位(m)
 #define COPTER_FOLLOW_MAX_DESCENT_STEP_M 0.15f // 多旋翼每次更新允许的最大目标下降量，单位(m)
 #define COPTER_FOLLOW_ALT_FLOOR_MARGIN_M 0.5f // 多旋翼跟随过程中目标高度不低于当前高度下方的安全余量，单位(m)
+#define COPTER_EMERGENCY_DISARM_ALT_MM 250 // 多旋翼异常贴地/翻覆时允许触发停桨兜底的高度阈值，单位(毫米),0.25米
+#define COPTER_EMERGENCY_DISARM_GS_MPS 1.5f // 多旋翼异常贴地/翻覆时的低地速阈值，单位(m/s)
+#define COPTER_EMERGENCY_DISARM_ATT_RAD 1.05f // 多旋翼异常贴地/翻覆时的姿态阈值，单位(弧度),约60度
+#define COPTER_EMERGENCY_DISARM_HOLD_MS 1500 // 多旋翼异常贴地/翻覆状态需持续的确认时间，单位(毫秒),1.5秒
 #define LEADER_TAKEOFF_CONFIRM_MS 2000 // 长机离地后自动起飞确认时间，单位(毫秒),2秒
 #define LEADER_LAND_ALT_THRESHOLD 1200 // 判定长机已接地的高度阈值，单位(毫米),1.2米
 #define PLANE_LEADER_LAND_SPEED_THRESHOLD 6.0f // 固定翼长机落地确认速度阈值，单位 m/s
@@ -187,6 +194,9 @@ typedef struct tag_MyStatus
     unsigned long lastPosTime;      // 最后收到 GLOBAL_POSITION_INT 的时间
     unsigned long lastEkfTime;      // 最后收到 EKF 状态的时间
     uint16_t ekfFlags;              // EKF_STATUS_REPORT flags
+    float ekf_vel_variance;         // EKF 速度方差
+    float ekf_pos_horiz_variance;   // EKF 水平位置方差
+    unsigned long ekfHealthySince;  // EKF 开始健康的时间点
 } MyStatus;
 //---------------------------------------------------------------------------
 //飞机编队信息

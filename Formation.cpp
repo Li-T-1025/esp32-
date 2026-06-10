@@ -549,15 +549,35 @@ bool Formation::isGpsHealthy() const {
 }
 
 bool Formation::isEkfHealthy() const {
-    if (_status.lastEkfTime == 0) return false;
-    if (millis() - _status.lastEkfTime > SENSOR_TIMEOUT_MS) return false;
+    if (_status.lastEkfTime == 0 || (millis() - _status.lastEkfTime > SENSOR_TIMEOUT_MS)) {
+        _status.ekfHealthySince = 0;
+        return false;
+    }
 
     bool attitudeOk = (_status.ekfFlags & EKF_ATTITUDE) != 0;
     bool horizOk = (_status.ekfFlags & EKF_POS_HORIZ_ABS) != 0;
     bool vertOk = ((_status.ekfFlags & EKF_POS_VERT_ABS) != 0) ||
                   ((_status.ekfFlags & EKF_POS_VERT_AGL) != 0);
     bool constPosMode = (_status.ekfFlags & EKF_CONST_POS_MODE) != 0;
-    return attitudeOk && horizOk && vertOk && !constPosMode;
+    
+    // 新增：方差检查
+    bool varianceOk = (_status.ekf_vel_variance < EKF_MAX_VEL_VARIANCE) && 
+                      (_status.ekf_pos_horiz_variance < EKF_MAX_POS_VARIANCE);
+
+    bool currentHealthy = attitudeOk && horizOk && vertOk && !constPosMode && varianceOk;
+
+    if (!currentHealthy) {
+        _status.ekfHealthySince = 0;
+        return false;
+    }
+
+    // 记录开始健康的时间
+    if (_status.ekfHealthySince == 0) {
+        _status.ekfHealthySince = millis();
+    }
+
+    // 只有持续健康超过 EKF_STABLE_REQUIRED_MS 才返回 true
+    return (millis() - _status.ekfHealthySince >= EKF_STABLE_REQUIRED_MS);
 }
 
 float Formation::clampTargetAlt(float alt) const {

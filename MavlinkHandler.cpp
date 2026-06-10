@@ -134,6 +134,8 @@ void MavlinkHandler::parseMessage(mavlink_message_t &msg) {
             mavlink_ekf_status_report_t ekf;
             mavlink_msg_ekf_status_report_decode(&msg, &ekf);
             _status.ekfFlags = ekf.flags;
+            _status.ekf_vel_variance = ekf.velocity_variance;
+            _status.ekf_pos_horiz_variance = ekf.pos_horiz_variance;
             _status.lastEkfTime = millis();
             break;
         }

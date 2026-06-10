@@ -1,0 +1,183 @@
+*************************** START ****************************
+START TIME: 202505121333
+CONNECT BAUD: 115200
+set state: ESP_DL_SYNC
+serial port opened
+-----------
+baud:115200
+root baud:115200
+-------------
+===============BAUD : 115200===============CALL DEVICE SYNC
+connecting...
+mac l: 0x63ca08c4
+mac h: 0xe4b0
+get mac res: 1
+get flash id : 0x001640c8
+manufacturer_id: 0xc8
+device_id: 0x4016
+
+Leaving...
+com closed
+Use time: 3 s
+Download result: PASS
+*************************** END ****************************
+
+*************************** START ****************************
+START TIME: 202505121335
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121335
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121336
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121336
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121345
+CONNECT BAUD: 115200
+set state: ESP_DL_SYNC
+serial port opened
+-----------
+baud:115200
+root baud:115200
+-------------
+===============BAUD : 115200===============CALL DEVICE SYNC
+connecting...
+mac l: 0x63ca08c4
+mac h: 0xe4b0
+get mac res: 1
+get flash id : 0x001640c8
+manufacturer_id: 0xc8
+device_id: 0x4016
+Wrote 873552 bytes (500695 compressed) at 0x00000000 in 4.9 seconds (effective 1439.5 kbit/s)...
+Hash of data verified.
+Leaving...
+com closed
+Use time: 7 s
+Download result: PASS
+*************************** END ****************************
+
+*************************** START ****************************
+START TIME: 202505121346
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121346
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121346
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121348
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121401
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121401
+CONNECT BAUD: 115200
+set state: ESP_DL_SYNC
+serial port opened
+-----------
+baud:115200
+root baud:115200
+-------------
+===============BAUD : 115200===============CALL DEVICE SYNC
+connecting...
+mac l: 0x63ca08c4
+mac h: 0xe4b0
+get mac res: 1
+get flash id : 0x001640c8
+manufacturer_id: 0xc8
+device_id: 0x4016
+Wrote 12416 bytes (9026 compressed) at 0x00000000 in 0.2 seconds (effective 485.8 kbit/s)...
+Hash of data verified.Wrote 3072 bytes (146 compressed) at 0x00008000 in 0.0 seconds (effective 576.7 kbit/s)...
+Hash of data verified.Wrote 873552 bytes (500695 compressed) at 0x00010000 in 4.8 seconds (effective 1469.7 kbit/s)...
+Hash of data verified.
+Leaving...
+com closed
+Use time: 8 s
+Download result: PASS
+*************************** END ****************************
+
+*************************** START ****************************
+START TIME: 202505121408
+CONNECT BAUD: 115200
+serial port open error
+COM:COM64
+baud:115200
+SERIAL PORT OPEN ERROR
+set state: ESP_DL_CONNECT_ERROR
+*************************** START ****************************
+START TIME: 202505121409
+CONNECT BAUD: 115200
+set state: ESP_DL_SYNC
+serial port opened
+-----------
+baud:115200
+root baud:115200
+-------------
+===============BAUD : 115200===============CALL DEVICE SYNC
+connecting...
+mac l: 0x63ca08c4
+mac h: 0xe4b0
+get mac res: 1
+get flash id : 0x001640c8
+manufacturer_id: 0xc8
+device_id: 0x4016
+Wrote 12416 bytes (9026 compressed) at 0x00000000 in 0.2 seconds (effective 515.3 kbit/s)...
+Hash of data verified.Wrote 3072 bytes (146 compressed) at 0x00008000 in 0.1 seconds (effective 460.1 kbit/s)...
+Hash of data verified.Wrote 896000 bytes (509028 compressed) at 0x00010000 in 5.0 seconds (effective 1438.0 kbit/s)...
+Hash of data verified.
+Leaving...
+com closed
+Use time: 8 s
+Download result: PASS
+*************************** END ****************************
+

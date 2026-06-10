@@ -95,8 +95,10 @@ void printDebugLogs() {
                   vehicleTypeName(status.vehicleType),
                   isArmed ? "ARMED" : "DISARMED",
                   status.heartbeat.custom_mode);
-    Serial.printf("Battery: %.2fV\n", status.sysStatus.voltage_battery / 1000.0);
-
+    Serial.printf("Battery: %.2fV | EKF Var: V=%.2f, P=%.2f\n", 
+                  status.sysStatus.voltage_battery / 1000.0,
+                  status.ekf_vel_variance, status.ekf_pos_horiz_variance);
+    
     // 3. WiFi 与 编队状态
     Serial.printf("WiFi: %s | SSID: %s\n", status.byWifi ? "Connected/Active" : "Disconnected", config.chSsid);
     if (!config.AP) {
@@ -247,6 +249,7 @@ void loop() {
             static bool copterAutoControlActive = false;
             static bool copterHoldActionSent = false;
             static bool copterRTLActionSent = false;
+            static bool copterForcedLandSent = false;
             static bool rcSyncOverrideActive = false;
             static uint16_t lastRcSyncValue = 0;
             static unsigned long lastRcSyncCmdTime = 0;
@@ -261,6 +264,8 @@ void loop() {
             static uint16_t lastSeenCmdSeq = 0;
             static bool leaderArmStateKnown = false;
             static bool lastLeaderArmedState = false;
+            static bool localArmStateKnown = false;
+            static bool lastLocalArmedState = false;
             static uint32_t lastLeaderBootSessionId = 0;
             static uint8_t lastLeaderDisarmEventSeq = 0;
             static unsigned long copterAutoJoinReadySince = 0;
@@ -269,12 +274,32 @@ void loop() {
             static int32_t lastCopterTargetLon = 0;
             static float lastCopterTargetAlt = 0.0f;
             static unsigned long copterJoinApproachSince = 0;
+            static bool copterHasBeenAirborneThisArm = false;
+            static unsigned long copterGroundDisarmCandidateSince = 0;
 
             auto clearMissionLatches = [&]() {
+                if (latchedTakeoff || latchedJoin || latchedLand || copterAutoControlActive) {
+                    Serial.println("Clearing all mission latches and state variables.");
+                }
                 latchedTakeoff = false;
                 latchedTakeoffUntil = 0;
                 latchedJoin = false;
                 latchedLand = false;
+                planeJoined = false;
+                planeHoldActionSent = false;
+                planeRTLActionSent = false;
+                copterAutoControlActive = false;
+                copterHoldActionSent = false;
+                copterRTLActionSent = false;
+                copterForcedLandSent = false;
+                copterAutoJoinReadySince = 0;
+                copterFollowTargetValid = false;
+                lastCopterTargetLat = 0;
+                lastCopterTargetLon = 0;
+                lastCopterTargetAlt = 0.0f;
+                copterJoinApproachSince = 0;
+                copterGroundDisarmCandidateSince = 0;
+                lastLeaderBootSessionId = 0;
             };
 
             auto setCmdAck = [&](uint8_t cmdType, uint16_t cmdSeq, uint8_t ackStatus) {
@@ -338,23 +363,48 @@ void loop() {
                 latchedTakeoff = false;
                 latchedTakeoffUntil = 0;
             }
-            // 如果高度低于 0.5 米，清除加入编队指令锁存 (认为已落地或未起飞)
-            if (status.pos.relative_alt < 500) {
-                latchedJoin = false;
-                latchedLand = false;
-                planeJoined = false;
-                planeHoldActionSent = false;
-                planeRTLActionSent = false;
-                copterAutoControlActive = false;
-                copterHoldActionSent = false;
-                copterRTLActionSent = false;
-                copterAutoJoinReadySince = 0;
-                copterFollowTargetValid = false;
-                lastCopterTargetAlt = 0.0f;
-                copterJoinApproachSince = 0;
-            }
 
             bool isArmed = status.heartbeat.base_mode & MAV_MODE_FLAG_SAFETY_ARMED;
+
+            // 每次本机上锁/解锁切换都重新开始计算 EKF 稳定窗口，
+            // 避免同一次上电中的第二架次沿用上一架次已累计好的稳定时间。
+            if (!localArmStateKnown) {
+                localArmStateKnown = true;
+                lastLocalArmedState = isArmed;
+                if (isArmed) {
+                    status.ekfHealthySince = 0;
+                }
+            } else if (isArmed != lastLocalArmedState) {
+                status.ekfHealthySince = 0;
+                copterGroundDisarmCandidateSince = 0;
+                if (isArmed) {
+                    copterHasBeenAirborneThisArm = false;
+                    copterForcedLandSent = false;
+                    copterAutoJoinReadySince = 0;
+                    copterFollowTargetValid = false;
+                    lastCopterTargetLat = 0;
+                    lastCopterTargetLon = 0;
+                    lastCopterTargetAlt = 0.0f;
+                    copterJoinApproachSince = 0;
+                    Serial.println("Local aircraft re-armed, resetting EKF stability timer and flight-approach state.");
+                } else {
+                    copterHasBeenAirborneThisArm = false;
+                    Serial.println("Local aircraft disarmed, resetting EKF stability timer.");
+                }
+                lastLocalArmedState = isArmed;
+            }
+
+            if (isArmed && status.pos.relative_alt >= LOWEST_ALTITUDE) {
+                copterHasBeenAirborneThisArm = true;
+            } else if (!isArmed) {
+                copterHasBeenAirborneThisArm = false;
+            }
+
+            // 重要：如果自身飞控已上锁，或者高度极低，必须强制清除所有任务锁存和状态变量。
+            // 否则在不重启 ESP32 的情况下进行第二次飞行，会残留上一次飞行的目标点导致僚机乱飞。
+            if (!isArmed || status.pos.relative_alt < 500) {
+                clearMissionLatches();
+            }
             bool isGuided = mavlink.isGuidedMode();
             unsigned long leaderAge = formation.leaderLinkAgeMs();
             bool leaderHoldLost = leaderAge > HOLD_LOST_WAIT_TIME;
@@ -380,6 +430,9 @@ void loop() {
                 if (leaderArmStateKnown && lastLeaderArmedState && !leaderArmed) {
                     leaderDisarmLandLatched = true;
                     Serial.println("Leader disarmed detected! Forcing follower landing/recovery immediately...");
+                }
+                if (leaderArmed) {
+                    copterForcedLandSent = false;
                 }
                 lastLeaderArmedState = leaderArmed;
                 leaderArmStateKnown = true;
@@ -719,13 +772,15 @@ void loop() {
                     }
                 }
 
-                if (leaderDisarmForcedLand && isArmed) {
+                if (leaderDisarmForcedLand && isArmed && !copterForcedLandSent) {
                     static unsigned long lastForcedLandCmdTime = 0;
-                    if (status.heartbeat.custom_mode != mavlink.recoveryModeNumber() &&
-                        millis() - lastForcedLandCmdTime > 500) {
+                    if (millis() - lastForcedLandCmdTime > 500) {
                         copterAutoControlActive = true;
                         mavlink.sendRecoveryMode();
                         lastForcedLandCmdTime = millis();
+                        if (status.heartbeat.custom_mode == mavlink.recoveryModeNumber()) {
+                            copterForcedLandSent = true;
+                        }
                         Serial.println("Leader disarmed! Copter follower forcing LAND immediately...");
                     }
                 } else if (isGuided && !leaderHoldLost) {
@@ -765,12 +820,14 @@ void loop() {
                     } else if (!latchedLand && status.pos.relative_alt < LOWEST_ALTITUDE) {
                         // 僚机高度不足，检查是否满足起飞条件 (自动或锁存的一键指令)
                         static unsigned long lastCmdTime = 0;
+                        bool allowGroundTakeoffCommands = !copterHasBeenAirborneThisArm;
                         if (latchedTakeoff && isArmed && status.pos.relative_alt >= LOWEST_ALTITUDE) {
                             setCmdAck(CMD_TAKEOFF_ALL, lastSeenCmdSeq, CMD_ACK_COMPLETED);
                         } else if (!armTestCooldownActive && millis() - lastCmdTime > 2000) { 
                             float tAlt = autoTakeoffAlt;
                             bool triggerArmOnly = autoArmForTakeoffRequested && !autoTakeoffRequested;
-                            bool triggerTakeoff = manualTakeoffRequested || autoTakeoffRequested;
+                            bool triggerTakeoff = (manualTakeoffRequested || autoTakeoffRequested) &&
+                                                  allowGroundTakeoffCommands;
                             
                             if (triggerArmOnly || triggerTakeoff) {
                                 copterAutoControlActive = true;
@@ -793,6 +850,8 @@ void loop() {
                                         lastCmdTime = millis();
                                     }
                                 }
+                            } else if (!allowGroundTakeoffCommands && isArmed) {
+                                Serial.println("Suppressing repeated takeoff command: copter has already been airborne in this arm cycle.");
                             }
                         }
                     } else if (!latchedLand && isArmed) {
@@ -810,7 +869,7 @@ void loop() {
                                     tAlt = targetAltFloor;
                                 }
 
-                                if (!copterFollowTargetValid) {
+                                if (!copterFollowTargetValid && status.pos.lat != 0 && status.pos.lon != 0) {
                                     lastCopterTargetLat = status.pos.lat;
                                     lastCopterTargetLon = status.pos.lon;
                                     lastCopterTargetAlt = currentAltM;
@@ -845,6 +904,33 @@ void loop() {
                                 if (latchedJoin) setCmdAck(CMD_JOIN_ALL, lastSeenCmdSeq, CMD_ACK_SENT_TO_FC);
                             }
                         }
+                    }
+
+                    // 第二层兜底：如果多旋翼已经在本次解锁中飞起来过，随后异常贴地/翻覆，
+                    // 即便 LAND 模式没有及时自动停桨，也要在确认接地后主动请求上锁，避免持续打桨。
+                    bool tippedOver = fabsf(status.attitude.roll) >= COPTER_EMERGENCY_DISARM_ATT_RAD ||
+                                      fabsf(status.attitude.pitch) >= COPTER_EMERGENCY_DISARM_ATT_RAD;
+                    bool emergencyDisarmEligible = isArmed &&
+                                                   copterHasBeenAirborneThisArm &&
+                                                   status.pos.relative_alt <= COPTER_EMERGENCY_DISARM_ALT_MM &&
+                                                   (leaderDisarmForcedLand || latchedLand || autoLandRequested || copterAutoControlActive) &&
+                                                   (status.groundSpeed <= COPTER_EMERGENCY_DISARM_GS_MPS || tippedOver);
+                    if (emergencyDisarmEligible) {
+                        if (copterGroundDisarmCandidateSince == 0) {
+                            copterGroundDisarmCandidateSince = millis();
+                        }
+
+                        static unsigned long lastEmergencyDisarmCmdTime = 0;
+                        if (millis() - copterGroundDisarmCandidateSince >= COPTER_EMERGENCY_DISARM_HOLD_MS &&
+                            millis() - lastEmergencyDisarmCmdTime > 1000) {
+                            mavlink.sendDisarmCommand();
+                            lastEmergencyDisarmCmdTime = millis();
+                            Serial.println(tippedOver ?
+                                           "Emergency disarm fallback: copter appears tipped over on the ground." :
+                                           "Emergency disarm fallback: copter remains armed at ground contact.");
+                        }
+                    } else {
+                        copterGroundDisarmCandidateSince = 0;
                     }
                 }
             }
